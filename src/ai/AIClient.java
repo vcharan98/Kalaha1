@@ -212,13 +212,33 @@ public class AIClient implements Runnable
      */
     public int getMove(GameState currentBoard)
     {
-        int myMove = minimax(currentBoard,0, currentBoard.getNextPlayer());
+        int myMove = findbestmove(currentBoard);
         return myMove;
     }
 
+    public int findbestmove(GameState kalahaboard)
+    {
+        int bestval = -999;
+        int move = 0;
+        for(int i = 1;i<7;i++)
+        {
+            if(kalahaboard.moveIsPossible(i))
+            {
+              GameState kalaha = kalahaboard.clone();
+              kalaha.makeMove(i);
+              int val = minimax(kalaha,10,1);
+              if(val > bestval){
+                  bestval=val;
+                  move = i;
+              }
+            }
+        }
+        return move;
+    }
+
     public int minimax(GameState currentBoard,int depth,int isPlayer1) {
-        if (currentBoard.gameEnded()) {
-            return currentBoard.getWinner();
+        if (currentBoard.gameEnded() || depth == 7) {
+            return getscore(currentBoard);
         }
 
         if (isPlayer1==2) {
@@ -230,6 +250,7 @@ public class AIClient implements Runnable
                 if(depth<7) {
                     int val = minimax(kalaha, depth + 1, nextplayer);
                     bestVal = Greatvalue(bestVal, val);
+                    System.out.println(val);
                 }
             }
             return bestVal;
@@ -241,6 +262,7 @@ public class AIClient implements Runnable
                 if(depth<7) {
                     int val = minimax(kalaha, depth + 1, kalaha.getNextPlayer());
                     bestVal = Mins(bestVal, val);
+                    System.out.println(val);
                 }
             }
             return bestVal;
@@ -266,7 +288,17 @@ public class AIClient implements Runnable
             return b;
         }
     }
-
+    public int getscore(GameState kalaha){
+        int score = 0;
+        int player1 = kalaha.getNextPlayer();
+        int player2 = 0;
+        if(player1 == 1)
+            player2 = 2;
+        else
+            player2 = 1;
+        score = kalaha.getScore(player1) - kalaha.getScore(player2);
+        return score;
+    }
     /**
      * Returns a random ambo number (1-6) used when making
      * a random move.
