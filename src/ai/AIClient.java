@@ -220,36 +220,48 @@ public class AIClient implements Runnable
     {
         int bestval = -999;
         int move = 0;
-        for(int i = 1;i<7;i++)
-        {
-            if(kalahaboard.moveIsPossible(i))
-            {
-              GameState kalaha = kalahaboard.clone();
-              kalaha.makeMove(i);
-              int val = minimax(kalaha,10,1);
-              if(val > bestval){
-                  bestval=val;
-                  move = i;
-              }
+        int alpha=-9999;
+        int beta=9999;
+        int timelimit = 5;
+        long starttime = System.currentTimeMillis();
+        boolean timeexceed = false;
+        while(timelimit >= (System.currentTimeMillis()-starttime)/(double)1000) {
+            for (int i = 1; i < 7; i++) {
+                if (kalahaboard.moveIsPossible(i)) {
+                    GameState kalaha = kalahaboard.clone();
+                    kalaha.makeMove(i);
+                    int val = minimax(kalaha, 0, alpha, beta, 1,starttime);
+                    if (val > bestval) {
+                        bestval = val;
+                        move = i;
+                    }
+                }
             }
         }
         return move;
     }
 
-    public int minimax(GameState currentBoard,int depth,int isPlayer1) {
-        if (currentBoard.gameEnded() || depth == 7) {
+    public int minimax(GameState currentBoard,int depth,int alpha, int beta, int isPlayer1,long starttime) {
+
+        if (currentBoard.gameEnded() || depth == 7 ||5 <= (System.currentTimeMillis()-starttime)/(double)1000) {
             return getscore(currentBoard);
         }
 
-        if (isPlayer1==2) {
+        if (isPlayer1==1) {
             int bestVal = -999;
             for (int i = 1; i <= 6; i++) {
                 GameState kalaha = currentBoard.clone();
                 kalaha.makeMove(i);
                 int nextplayer=kalaha.getNextPlayer();
-                if(depth<7) {
-                    int val = minimax(kalaha, depth + 1, nextplayer);
+                if(depth<=10) {
+                    int val = minimax(kalaha, depth + 1,alpha,beta, nextplayer,starttime);
                     bestVal = Greatvalue(bestVal, val);
+                    if(val>=beta)
+                        return bestVal;
+                    if( val> alpha)
+                        alpha=val;
+                    if (beta<=alpha)
+                        break;
                     System.out.println(val);
                 }
             }
@@ -259,9 +271,15 @@ public class AIClient implements Runnable
             for (int i = 1; i <= 6; i++) {
                 GameState kalaha = currentBoard.clone();
                 kalaha.makeMove(i);
-                if(depth<7) {
-                    int val = minimax(kalaha, depth + 1, kalaha.getNextPlayer());
+                if(depth<=10) {
+                    int val = minimax(kalaha, depth + 1,alpha,beta, kalaha.getNextPlayer(),starttime);
                     bestVal = Mins(bestVal, val);
+                    if( val <= alpha)
+                        return bestVal;
+                    if( val < beta)
+                        beta=val;
+                    if(beta<=alpha)
+                        break;
                     System.out.println(val);
                 }
             }
