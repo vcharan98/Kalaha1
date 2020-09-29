@@ -210,82 +210,132 @@ public class AIClient implements Runnable
      * @param currentBoard The current board state
      * @return Move to make (1-6)
      */
+    private static final int INITIAL_DEPTH = 4;
+    private static final int TIMEOUT_MILISECONDS = 5000;
+
+    private int currentDepth;
+    private int bestMove;
+    private int globalBestMove;
+    private long start;
+    private boolean timeout;
+
     public int getMove(GameState currentBoard)
     {
         int myMove = findbestmove(currentBoard);
         return myMove;
     }
-
-    public int findbestmove(GameState kalahaboard)
+    public int findbestmove(GameState currentboard)
     {
-        int bestval = -999;
-        int move = 0;
-        int alpha=-9999;
-        int beta=9999;
-        int timelimit = 5;
-        long starttime = System.currentTimeMillis();
-        boolean timeexceed = false;
-        while(timelimit >= (System.currentTimeMillis()-starttime)/(double)1000) {
-            for (int i = 1; i < 7; i++) {
-                if (kalahaboard.moveIsPossible(i)) {
-                    GameState kalaha = kalahaboard.clone();
-                    kalaha.makeMove(i);
-                    int val = minimax(kalaha, 0, alpha, beta, 1,starttime);
-                    if (val > bestval) {
-                        bestval = val;
-                        move = i;
+        timeout = false;
+        start= System.currentTimeMillis();
+        int alpha = Integer.MIN_VALUE;
+        int beta = Integer.MAX_VALUE;
+        int player1 = 0;
+        int player2 = 0;
+        if(currentboard.getNextPlayer()==2)
+        {
+            player1 = 1;
+            player2 = 2;
+        }
+        else
+        {
+            player1 = 2;
+            player2 = 1;
+        }
+
+        for(int d=0;d<10; d++)
+        {
+
+            if(d>0)
+                globalBestMove=bestMove;
+            currentDepth= INITIAL_DEPTH+d;
+            maximizer(currentboard,currentDepth,alpha,beta,player1,0);
+            if(timeout){
+                return globalBestMove;
+            }
+        }
+        return globalBestMove;
+    }
+
+    public int maximizer(GameState kalaha,int depth,int alpha,int beta,int player,int move)
+    {
+        int nextplayer = 0;
+        if(player == 1)
+            nextplayer = 2;
+        else
+            nextplayer = 1;
+
+        if(System.currentTimeMillis()-start> TIMEOUT_MILISECONDS)
+        {
+            timeout=true;
+            return alpha;
+        }
+        if(kalaha.gameEnded()||depth==0)
+        {
+            if(kalaha.getWinner()==player){
+                return getscore(kalaha,player);
+            }
+            else
+                return  getscore(kalaha,nextplayer);
+        }
+
+
+        for(int i = 1; i < 7; i++)
+        {
+            GameState kalahaboard = kalaha.clone();
+            if(kalahaboard.moveIsPossible(i)){
+                kalahaboard.makeMove(i);
+                int val = minimizer(kalahaboard,depth-1,alpha,beta,nextplayer,i);
+                if(val>alpha)
+                {
+                    alpha=val;
+                    if(depth == currentDepth)
+                    {
+                        bestMove=i;
                     }
                 }
+                if(alpha>=beta)
+                    return alpha;
             }
         }
-        return move;
+        return alpha;
     }
 
-    public int minimax(GameState currentBoard,int depth,int alpha, int beta, int isPlayer1,long starttime) {
+    public int minimizer(GameState kalaha,int depth,int alpha,int beta,int player,int move)
+    {
+        int nextplayer = 0;
+        if(player==1)
+            nextplayer = 2;
+        else
+            nextplayer = 1;
 
-        if (currentBoard.gameEnded() || depth == 7 ||5 <= (System.currentTimeMillis()-starttime)/(double)1000) {
-            return getscore(currentBoard);
+
+        if(depth==0)
+        {
+            return getscore(kalaha,player);
         }
-
-        if (isPlayer1==1) {
-            int bestVal = -999;
-            for (int i = 1; i <= 6; i++) {
-                GameState kalaha = currentBoard.clone();
-                kalaha.makeMove(i);
-                int nextplayer=kalaha.getNextPlayer();
-                if(depth<=10) {
-                    int val = minimax(kalaha, depth + 1,alpha,beta, nextplayer,starttime);
-                    bestVal = Greatvalue(bestVal, val);
-                    if(val>=beta)
-                        return bestVal;
-                    if( val> alpha)
-                        alpha=val;
-                    if (beta<=alpha)
-                        break;
-                    System.out.println(val);
+        for(int i = 1; i < 7;i++)
+        {
+            GameState kalahaboard = kalaha.clone();
+            if(kalahaboard.moveIsPossible(i))
+            {
+                kalahaboard.makeMove(i);
+                int val = maximizer(kalahaboard,depth-1,alpha,beta, nextplayer,i);
+                if(val<=beta)
+                {
+                    beta = val;
+                }
+                if(alpha>=beta)
+                {
+                    return beta;
                 }
             }
-            return bestVal;
-        } else {
-            int bestVal = +999;
-            for (int i = 1; i <= 6; i++) {
-                GameState kalaha = currentBoard.clone();
-                kalaha.makeMove(i);
-                if(depth<=10) {
-                    int val = minimax(kalaha, depth + 1,alpha,beta, kalaha.getNextPlayer(),starttime);
-                    bestVal = Mins(bestVal, val);
-                    if( val <= alpha)
-                        return bestVal;
-                    if( val < beta)
-                        beta=val;
-                    if(beta<=alpha)
-                        break;
-                    System.out.println(val);
-                }
-            }
-            return bestVal;
         }
+        return beta;
     }
+
+   
+
     public int Greatvalue(int a,int b){
         if(a>b){
             return a;
@@ -306,16 +356,81 @@ public class AIClient implements Runnable
             return b;
         }
     }
-    public int getscore(GameState kalaha){
+    public int getscore(GameState kalaha,int player){
         int score = 0;
-        int player1 = kalaha.getNextPlayer();
-        int player2 = 0;
-        if(player1 == 1)
-            player2 = 2;
-        else
-            player2 = 1;
-        score = kalaha.getScore(player1) - kalaha.getScore(player2);
+        int nextplayer = 0;
+        if(player == 1) {
+            nextplayer = 2;
+            score = kalaha.getScore(player) - kalaha.getScore(nextplayer);
+        }
+        else {
+            nextplayer = 1;
+            score = kalaha.getScore(nextplayer) - kalaha.getScore(player);
+        }
+
         return score;
+    }
+
+    public int utility(GameState currentboard,int move,int player)
+    {
+        GameState cloneboard = currentboard.clone();
+        cloneboard.makeMove(move);
+        int nextplayer = 0;
+        if(player==1)
+        {
+            nextplayer=2;
+        }
+        else
+            nextplayer=1;
+        if(getscoreincreasedby1(currentboard,cloneboard,player))
+        {
+            if(getscoreincreasedbyn(currentboard,cloneboard,player))
+            {
+                if(checkopponentboard(currentboard,cloneboard,nextplayer))
+                {
+                    return 4;
+                }
+            }
+        }
+        else
+            return 1;
+        if(getscoreincreasedby1(currentboard,cloneboard,player)){
+            if(checkopponentboard(currentboard,cloneboard,nextplayer))
+                return 3;
+        }
+        if(getscoreincreasedbyn(currentboard,cloneboard,player))
+            return 2;
+        return 0;
+    }
+
+    public boolean getscoreincreasedby1(GameState currentboard,GameState cloneboard,int player)
+    {
+        if(cloneboard.getScore(player)==currentboard.getScore(player)+1)
+        {
+            return true;
+        }
+        else
+            return false;
+    }
+    public boolean getscoreincreasedbyn(GameState currentboard,GameState cloneboard,int player)
+    {
+        if(cloneboard.getScore(player)>=currentboard.getScore(player)+1)
+        {
+            return true;
+        }
+        else
+            return false;
+    }
+
+    public boolean checkopponentboard(GameState currentboard,GameState cloneboard,int player)
+    {
+        boolean valueschanged = false;
+        for(int ambo=1;ambo<7;ambo++)
+        {
+            if(currentboard.getSeeds(ambo,player)>cloneboard.getSeeds(ambo,player))
+                valueschanged = true;
+        }
+        return  valueschanged;
     }
     /**
      * Returns a random ambo number (1-6) used when making
